@@ -1,0 +1,76 @@
+# =============================================================================
+#  Bangladeshi Currency Denomination Recognition - Configuration
+# =============================================================================
+
+# ------------------------- Global -------------------------
+debug: false                    # If true, save intermediate images to data/processed/
+debug_output_dir: "data/processed"
+log_level: "INFO"               # DEBUG | INFO | WARNING | ERROR
+
+# ------------------------- Preprocessing -------------------------
+preprocessing:
+  # Resize longest edge before processing (speed vs accuracy tradeoff)
+  resize_max_dim: 1500
+
+  # Gaussian blur before edge detection
+  gaussian_kernel: [5, 5]
+  gaussian_sigma: 0
+
+  # Canny thresholds (dynamically adjusted if adaptive=true)
+  canny:
+    adaptive: true
+    lower: 50
+    upper: 150
+
+  # Contour filtering
+  contour:
+    min_area_ratio: 0.10        # Ignore contours smaller than 10% of image area
+    approx_epsilon: 0.02        # Douglas-Peucker epsilon (fraction of perimeter)
+
+  # Output size of warped/aligned note (aspect ratio ~ 2.4:1 for BDT notes)
+  aligned_output:
+    width: 1200
+    height: 500
+
+# ------------------------- Grid Splitter -------------------------
+grid:
+  rows: 3
+  cols: 3
+  # Patches to run OCR on (1-indexed, row-major: 1 2 3 / 4 5 6 / 7 8 9)
+  ocr_patches: [1, 3, 9]
+  # Add a small padding to each patch to catch numerals near cell boundaries
+  patch_padding_ratio: 0.05
+
+# ------------------------- OCR -------------------------
+ocr:
+  # Tesseract config
+  tesseract_cmd: null           # null = use system PATH; else set full path
+  language: "eng"
+  psm: 7                        # Page segmentation mode 7 = single text line
+  oem: 3                        # OCR engine mode 3 = default
+  char_whitelist: "0123456789"
+
+  # Patch pre-OCR pipeline
+  patch_preprocessing:
+    upscale_factor: 3           # OCR is much more reliable on larger images
+    clahe_clip_limit: 2.0
+    clahe_tile_grid: [8, 8]
+    threshold_method: "otsu"    # "otsu" | "adaptive" | "binary"
+    invert_if_dark_bg: true     # Auto-invert when background is darker than text
+    morph_kernel: [2, 2]
+
+# ------------------------- Validation -------------------------
+validation:
+  # Valid Bangladeshi taka denominations
+  valid_denominations: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
+  # Minimum digits required to consider an OCR result usable
+  min_digits: 1
+  # Maximum digits allowed (1000 has 4)
+  max_digits: 4
+
+# ------------------------- Voting -------------------------
+voting:
+  # If no consensus, fall back to the patch with highest OCR confidence
+  tie_breaker: "highest_confidence"   # "highest_confidence" | "first" | "none"
+  # Require at least this many patches agreeing to declare a confident result
+  min_agreement: 2

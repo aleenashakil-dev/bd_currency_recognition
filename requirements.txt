@@ -1,0 +1,21 @@
+# Core computer vision
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# OCR
+pytesseract>=0.3.10
+
+# Config
+PyYAML>=6.0
+
+# CLI + logging
+click>=8.1.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Notebooks (optional, dev only)
+jupyterlab>=4.0.0
+matplotlib>=3.7.0
