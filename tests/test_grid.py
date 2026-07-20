@@ -22,9 +22,10 @@ class TestGridSplitter:
 
     def test_only_selected_patches_returned(self, default_config, dummy_aligned_note):
         splitter = GridSplitter(default_config)
-        wanted = [1, 3, 9]
+        wanted = [1, 3, 7, 9]
         subset = splitter.get_patches_by_index(dummy_aligned_note, wanted)
         assert [p.index for p in subset] == wanted
+
 
     def test_patch_shapes_sum_to_image_area_approx(self, default_config):
         """Patches should tile the image (approx — integer division may leave a remainder)."""

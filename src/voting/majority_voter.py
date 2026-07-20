@@ -16,27 +16,28 @@ class VoteResult:
 
 
 class MajorityVoter:
-    """Pick the final denomination by majority vote among valid patches."""
+    """Weighted majority vote over validated patch results.
+
+    Weight of each vote equals the OCR confidence score.
+    """
 
     def __init__(self, config: dict):
-        v = config["voting"]
+        v = config.get("voting", {})
         self.tie_breaker = v.get("tie_breaker", "highest_confidence")
         self.min_agreement = int(v.get("min_agreement", 2))
 
     def vote(self, patch_results: dict[int, ValidatedResult]) -> VoteResult:
         """Vote across patch results.
 
-        Args:
-            patch_results: mapping of patch_index -> ValidatedResult.
-
-        Returns:
-            VoteResult with the winning denomination or None if no consensus.
+        Only patches with `is_valid=True` participate.
+        Each vote weight equals `ValidatedResult.confidence`.
         """
+        total = len(patch_results)
+
         valid_only = {
             idx: r for idx, r in patch_results.items()
-            if r.is_valid and r.extracted_number is not None
+            if r.is_valid and r.extracted_number is not None and r.confidence is not None
         }
-        total = len(patch_results)
 
         if not valid_only:
             return VoteResult(
@@ -44,51 +45,60 @@ class MajorityVoter:
                 agreement=0, total_patches=total, per_patch=patch_results,
             )
 
-        counts = Counter(r.extracted_number for r in valid_only.values())
-        top_count = counts.most_common(1)[0][1]
-        top_candidates = [d for d, c in counts.items() if c == top_count]
+        weights_by_denom: dict[int, float] = {}
+        count_by_denom: dict[int, int] = {}
+        for r in valid_only.values():
+            denom = int(r.extracted_number)
+            w = float(r.confidence) if r.confidence is not None else 0.0
+            weights_by_denom[denom] = weights_by_denom.get(denom, 0.0) + w
+            count_by_denom[denom] = count_by_denom.get(denom, 0) + 1
+
+        max_weight = max(weights_by_denom.values())
+        top_candidates = [d for d, w in weights_by_denom.items() if w == max_weight]
 
         if len(top_candidates) == 1:
             winner = top_candidates[0]
         else:
             winner = self._break_tie(top_candidates, valid_only)
 
-        # Confidence = mean confidence of patches that voted for the winner
-        winning_confs = [
-            r.confidence for r in valid_only.values()
-            if r.extracted_number == winner and r.confidence >= 0
+        winning_patches = [
+            r for r in valid_only.values()
+            if int(r.extracted_number) == winner
         ]
+        winning_confs = [float(r.confidence) for r in winning_patches if r.confidence is not None]
         conf = float(sum(winning_confs) / len(winning_confs)) if winning_confs else -1.0
 
-        if top_count < self.min_agreement:
-            # Consensus below threshold — still return the top but caller can gate
+        agreement = int(count_by_denom.get(winner, 0))
+        if agreement < self.min_agreement:
+            # keep winner anyway; caller can gate on confidence/agreement
             pass
 
         return VoteResult(
             denomination=winner,
             confidence=conf,
-            agreement=top_count,
+            agreement=agreement,
             total_patches=total,
             per_patch=patch_results,
         )
 
     def _break_tie(self, candidates: list[int],
                    results: dict[int, ValidatedResult]) -> int:
-        """Break a tie between multiple candidates with the same vote count."""
+        """Tie breaker among equal total weight candidates."""
         if self.tie_breaker == "highest_confidence":
-            best_conf = -1.0
             best = candidates[0]
+            best_avg = -1.0
             for c in candidates:
-                confs = [r.confidence for r in results.values()
-                         if r.extracted_number == c and r.confidence >= 0]
-                if confs:
-                    avg = sum(confs) / len(confs)
-                    if avg > best_conf:
-                        best_conf = avg
-                        best = c
+                confs = [float(r.confidence) for r in results.values()
+                         if r.is_valid and r.extracted_number == c and r.confidence is not None]
+                avg = sum(confs) / len(confs) if confs else -1.0
+                if avg > best_avg:
+                    best_avg = avg
+                    best = c
             return best
-        # "first" or "none" — return the smallest patch index's candidate
+
+        # "first" — smallest patch index wins
         for idx in sorted(results.keys()):
-            if results[idx].extracted_number in candidates:
-                return results[idx].extracted_number
-        return candidates[0]
+            if results[idx].is_valid and results[idx].extracted_number in candidates:
+                return int(results[idx].extracted_number)
+        return int(candidates[0])
+

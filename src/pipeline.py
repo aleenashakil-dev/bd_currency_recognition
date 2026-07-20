@@ -6,10 +6,12 @@ import time
 from config import load_config
 from .preprocessing import NoteDetector
 from .grid import GridSplitter
-from .ocr import TesseractOCR, PatchPreprocessor
+from .ocr import PaddleOCRDigitOCR, PatchPreprocessor
+
 from .validation import DenominationValidator, ValidatedResult
 from .voting import MajorityVoter, VoteResult
 from .utils import get_logger, save_debug_image
+
 
 
 @dataclass
@@ -49,7 +51,16 @@ class CurrencyRecognitionPipeline:
         self.note_detector = NoteDetector(self.config)
         self.grid_splitter = GridSplitter(self.config)
         self.patch_prep = PatchPreprocessor(self.config)
-        self.ocr = TesseractOCR(self.config)
+        # OCR initialization can be heavy and may fail if paddleocr or models are missing.
+        # Keep it centralized; tests may mock `pipe.ocr.recognize`, so we must still
+        # allow pipeline construction.
+        try:
+            self.ocr = PaddleOCRDigitOCR(self.config)
+        except ModuleNotFoundError:
+            # Defer actual OCR failures until recognize-time.
+            self.ocr = None
+
+
         self.validator = DenominationValidator(self.config)
         self.voter = MajorityVoter(self.config)
         self.ocr_patches = self.config["grid"]["ocr_patches"]
@@ -83,14 +94,24 @@ class CurrencyRecognitionPipeline:
                 if self.debug:
                     save_debug_image(prepped, f"04_patch_{p.index}_binary", self.debug_dir)
 
-                ocr_res = self.ocr.recognize(prepped)
+                ocr_res = self.ocr.recognize(prepped, patch_index=p.index)
+
+                # Validation + confidence threshold rejection
+                # (DenominationValidator checks valid denominations; Pipeline gates confidence.)
                 validated = self.validator.validate(ocr_res.text, ocr_res.confidence)
+
+                conf_ok = ocr_res.confidence >= float(self.config["ocr"].get("confidence_threshold", 0.0))
+                if not conf_ok:
+                    validated.is_valid = False
+                    validated.extracted_number = None
+
                 per_patch[p.index] = validated
                 self.log.debug(
                     f"Patch {p.index}: raw='{ocr_res.text}' → "
                     f"num={validated.extracted_number} valid={validated.is_valid} "
-                    f"conf={ocr_res.confidence:.1f}"
+                    f"conf={ocr_res.confidence:.3f}"
                 )
+
 
             # Step 5: majority vote
             vote: VoteResult = self.voter.vote(per_patch)

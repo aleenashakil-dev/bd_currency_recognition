@@ -34,8 +34,9 @@ class TestMajorityVoter:
             9: _mk(1000, conf=70.0),
         }
         vote = voter.vote(results)
-        # Tie: each candidate has 1 vote → highest_confidence wins
+        # Weighted tie-breaker: highest average confidence should win
         assert vote.denomination == 500
+
 
     def test_no_valid_patches(self, default_config):
         voter = MajorityVoter(default_config)

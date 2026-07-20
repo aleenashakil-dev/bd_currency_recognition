@@ -6,7 +6,8 @@
 - **Lightweight.** Runs on modest hardware — laptop CPU, Raspberry Pi 4, mid-range Android.
 - **Fast.** Target < 500 ms per image on a modern laptop CPU.
 - **Auditable.** Every stage produces an inspectable intermediate output.
-- **Classical only.** OpenCV for image ops, Tesseract for OCR. No neural networks.
+- **Classical + OCR.** OpenCV for image ops, PaddleOCR for OCR. No cloud APIs.
+
 
 ## Stage-by-stage
 

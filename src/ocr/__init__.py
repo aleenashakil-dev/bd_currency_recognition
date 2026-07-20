@@ -1,4 +1,5 @@
-from .tesseract_ocr import TesseractOCR, OCRResult
+from .paddleocr_ocr import PaddleOCRDigitOCR, OCRResult
 from .ocr_preprocessor import PatchPreprocessor
 
-__all__ = ["TesseractOCR", "OCRResult", "PatchPreprocessor"]
+__all__ = ["PaddleOCRDigitOCR", "OCRResult", "PatchPreprocessor"]
+

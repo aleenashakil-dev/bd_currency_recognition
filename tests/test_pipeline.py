@@ -18,6 +18,7 @@ class TestPipelineIntegration:
         assert result.denomination == 100
         assert result.confidence > 0
         assert result.total_patches == len(default_config["grid"]["ocr_patches"])
+
         assert result.elapsed_ms > 0
 
     def test_pipeline_handles_missing_note(self, default_config):

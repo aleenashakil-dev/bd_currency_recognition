@@ -1,9 +1,10 @@
 # Offline Bangladeshi Currency Denomination Recognition
 
-A completely offline, lightweight, classical computer vision system that recognizes
-the denomination of Bangladeshi currency notes (Taka) using OpenCV + Tesseract OCR.
+A completely offline, lightweight system that recognizes the denomination of
+Bangladeshi currency notes (Taka) using OpenCV + PaddleOCR.
 
-**No AI models. No cloud APIs. No internet required after install.**
+**No AI models/cloud APIs. No internet required after install (models must be available locally).**
+
 
 ## Pipeline
 

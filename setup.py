@@ -12,7 +12,7 @@ setup(
         "opencv-python>=4.8.0",
         "numpy>=1.24.0",
         "Pillow>=10.0.0",
-        "pytesseract>=0.3.10",
+        "paddleocr>=2.9.0",
         "PyYAML>=6.0",
         "click>=8.1.0",
     ],
